@@ -1,0 +1,60 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+
+
+
+<div id="categoryMenu">
+  <ul class="nav justify-content-center" id="mainCategory">
+    <c:forEach items="${cateList }" var="categoryVO">
+      <li class="nav-item">
+        <a class="nav-item" href="${categoryVO.cat_code }"><c:out value="${categoryVO.cat_name }" /></a>
+      </li>
+    </c:forEach>
+  </ul>
+</div>
+<script>
+
+$(document).ready(function() {
+  // 1차 카테고리 클릭
+  $("ul.nav li.nav-item a").on("mouseover", function(e) {
+    e.preventDefault();
+
+    //console.log("1차카테고리 선택");
+    let selectdCategory = $(this);
+    let cat_code = $(this).attr("href");
+    //let cat_name = "<b>" + $(this).html() + "</b>";
+    let url = "/product/subCategory/" + cat_code;
+
+    
+
+    $.getJSON(url, function(subCategory) {
+      console.log("test");
+
+      let subCategoryStr = '<ul class="nav justify-content-center" id="subCategory">';
+      for(let i=0; i<subCategory.length; i++) {
+        subCategoryStr += '<li class="nav-item">';
+        subCategoryStr +=  '<a class=""nav-item"" href="' + subCategory[i].cat_code  + '">' + subCategory[i].cat_name + '</a>';
+        subCategoryStr +=  '</li>';
+      }
+      subCategoryStr += '</ul>';
+
+      //console.log(subCategoryStr);
+      selectdCategory.parent().parent().next().remove();
+      selectdCategory.parent().parent().after(subCategoryStr);
+
+    });
+
+    // 2차 카테고리 선택
+    $("div#categoryMenu").on("click", "ul#subCategory li.nav-item a", function(e) {
+      e.preventDefault();
+
+      //console.log("2차 카테고리 선택");
+
+      let url = "/product/pro_list/" + $(this).attr("href") + "/" + $(this).html();
+      location.href = url;
+    });
+  });
+}); 
+
+</script>

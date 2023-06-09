@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gamemall.mapper.AdProductMapper">
+
+	<select id="getCategoryList" resultType="com.gamemall.domain.CategoryVO">
+		
+		SELECT cat_code,cat_prtcode,cat_name FROM category_tbl WHERE cat_prtcode IS NULL 
+		
+	</select>
+	
+	<select id="subCategoryList" resultType="com.gamemall.domain.CategoryVO">
+	
+		SELECT 
+			cat_code,cat_prtcode,cat_name 
+		FROM 
+			category_tbl 
+		WHERE	
+			cat_prtcode = #{cat_code}
+	</select>
+	
+	<insert id="pro_insert">
+	
+		insert into product_tbl(pro_num, cat_code, pro_name, pro_price, pro_discount, pro_publisher, pro_content, pro_up_folder, pro_img, pro_amount, pro_buy)
+		values(seq_product_tbl.nextval, #{cat_code},#{pro_name},#{pro_price},#{pro_discount},#{pro_publisher},#{pro_content},#{pro_up_folder},#{pro_img},#{pro_amount},#{pro_buy})
+	
+	</insert>
+	
+	<!-- 검색 조건 작업 : include로 참조-->
+	<sql id="criteria">
+		<trim prefix="(" suffix=") AND " prefixOverrides="OR"> <!-- trim태그 sql구문중에 맨 앞에 or가 중복되면 제거 -->
+			<foreach collection="typeArr" item="type">  <!-- typeArr은 Criteria는 getTypeArr을 가리킨다 -->
+				<trim prefix="OR">
+					<choose>
+						<when test="type == 'N'.toString()">
+							pro_name like '%' || #{keyword} || '%'
+						</when>       
+						<when test="type == 'P'.toString()">
+							pro_publisher like '%' || #{keyword} || '%'
+						</when>
+						
+					</choose>
+				</trim>
+			</foreach>
+		</trim>
+	</sql>
+	
+	<select id="getListWithPaging" resultType="com.gamemall.domain.ProductVO">
+	<![CDATA[
+		SELECT 
+			RN, pro_num, cat_code, pro_name, pro_price, pro_discount, pro_publisher, pro_content, pro_up_folder, pro_img, pro_amount, pro_buy, pro_date, pro_updatedate
+		FROM 
+			( 
+	        	SELECT /*+INDEX_DESC(product_tbl pk_pro_num) */ 
+	        	ROWNUM RN, pro_num, cat_code, pro_name, pro_price, pro_discount, pro_publisher, pro_content, pro_up_folder, pro_img, pro_amount, pro_buy, pro_date, pro_updatedate
+	        	FROM product_tbl
+	        	
+	        	where 
+        	]]>		
+        		<include refid="criteria"></include>	
+        	<![CDATA[		
+        			ROWNUM <= (#{pageNum} * #{amount})
+        	
+		)
+		WHERE 	
+				RN > ((#{pageNum} - 1) * #{amount})
+			]]>
+	</select>
+	<!--  조건식 sql 사용 -->
+	<!--  페이징처리. 테이블 전체 데이터. 위의 구문에 조건식이 들어가면 이 구문에도 같이 들어가줘야 함.  -->
+	<!-- 목록에 조건을 추가 할 때 조회와 갯수에도 추가해야함. getListWithPaging 와 getTotalCount  -->
+	<select id="getTotalCount" resultType="int">
+		select 
+			count(*) 
+		from 
+			product_tbl
+		where 
+		<include refid="criteria"></include><!-- 검색 파리미터 때문에 사용 --> 
+			pro_num > 0		<!-- 사용하는 이유는 위 sql구문이 검색기능에 의한 문법이 문제가 없기 위해. -->
+	</select>
+
+	<select resultType="com.gamemall.domain.ProductVO" id="modify">
+		select
+			 pro_num, cat_code, pro_name, pro_price, pro_discount, pro_publisher, pro_content, pro_up_folder, pro_img, pro_amount, pro_buy, pro_date, pro_updatedate 
+		from 
+			PRODUCT_TBL 
+		where 
+			pro_num = #{pro_num} 
+	</select>
+
+	<select resultType="com.gamemall.domain.CategoryVO" id="get">
+		select
+			cat_code, cat_prtcode, cat_name
+		from
+			category_tbl
+		where
+			cat_code = (select cat_prtcode from category_tbl where cat_code = #{cat_code}) 
+		</select>
+	
+	<update id="update">
+		update 
+			PRODUCT_TBL 
+ 		set 
+ 			cat_code = #{cat_code}, 
+ 			pro_name = #{pro_name}, 
+ 			pro_price = #{pro_price}, 
+ 			pro_discount = #{pro_discount}, 
+ 			pro_publisher = #{pro_publisher}, 
+ 			pro_content = #{pro_content}, 
+ 			pro_up_folder = #{pro_up_folder}, 
+ 			pro_img = #{pro_img}, 
+ 			pro_amount = #{pro_amount}, 
+ 			pro_buy = #{pro_buy}, 
+			pro_updatedate = sysdate
+ 		where 
+ 			pro_num = #{pro_num}
+	</update>
+	
+	<delete id="delete">
+		delete
+			from PRODUCT_TBL
+		where
+			pro_num = #{pro_num}
+	</delete>
+	
+	<update id="pro_checked_modify">
+		 
+		 <foreach collection="list" item="item" open="declare begin" separator=";" close="; end;">
+		 	update
+		 		PRODUCT_TBL
+		 	set 
+		 		pro_price = #{item.pro_price}, pro_buy = #{item.pro_buy}
+			where  
+				pro_num = #{item.pro_num} 		
+		 </foreach>
+		 
+	</update>
+	 
+	 <!-- 
+	 <update id="pro_checked_modify2">
+	 	update
+	 		PRODUCT_TBL
+	 	set
+	 		pro_price = #{pro_price}, pro_buy = {pro_buy}, pro_updatedate = sysdate	
+		where
+			pro_num = #{pro_num}	 		
+	 </update>
+	  -->
+	  
+	<delete id="pro_checked_delete">
+		delete from
+				PRODUCT_TBL
+		where 
+			pro_num  in
+		<foreach collection="list" item="pro_num" open="(" separator="," close=")">
+			#{pro_num}
+		</foreach>							
+	</delete>
+</mapper>  
